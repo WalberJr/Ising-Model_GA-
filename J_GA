@@ -1,0 +1,112 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Nov 25 03:25:48 2022
+Ising 2D +  GA
+
+@author: Walber Jr
+"""
+
+import numpy as np
+import random
+import matplotlib.pyplot as plt
+
+# Parâmetros do sistema
+Lx = 5  # Tamanho da superfície
+Ly = 5  # Tamanho da superfície
+N = Lx * Ly  # Número total de spins
+Jx1 = 1.5  # Constante de acoplamento de troca na direção x
+Jx2 = 0.5  # Constante de acoplamento de troca na direção x
+Jx3 = 0.2  # Constante de acoplamento de troca na direção x
+Jy1 = -1.5 # Constante de acoplamento de troca na direção y
+Jy2 = -0.5 # Constante de acoplamento de troca na direção y
+Jy3 = -0.2 # Constante de acoplamento de troca na direção y
+Jz = 0.0  # Constante de acoplamento de troca na direção z
+Hx = 0.0 # Campo externo quantizado na direção x
+Hy = 0.0  # Campo externo quantizado na direção y
+Hz = 0.0  # Campo externo quantizado na direção z
+lambda_SO = 0.0  # Constante de acoplamento spin-órbita
+
+# Função de avaliação (Método de Monte Carlo)
+def avaliar_ordenamento(ordenamento):
+    # Gerar uma grade 2D a partir do ordenamento
+    surface = np.array(ordenamento).reshape((Lx, Ly))
+
+    # Calcular a energia total do sistema
+    energy = 0
+    for i in range(Lx):
+        for j in range(Ly):
+            energy += -Jx1 * surface[i, j] * surface[(i + 1) % Lx, j] -Jx2 * surface[i, j] * surface[(i + 2) % Lx, j] -Jx3 * surface[i, j] * surface[(i + 3) % Lx, j]
+            energy += -Jy1 * surface[i, j] * surface[i, (j + 1) % Ly] -Jy2 * surface[i, j] * surface[i, (j + 1) % Ly] -Jy3 * surface[i, j] * surface[i, (j + 1) % Ly]
+            energy += -Jz * surface[i, j] * surface[i, j]
+            energy += -Hx * surface[i, j]
+            energy += -Hy * surface[i, j]
+            energy += -Hz * surface[i, j]
+            energy += -lambda_SO * surface[i, j] * (surface[(i + 1) % Lx, (j + 1) % Ly] - surface[(i + 1) % Lx, (j - 1) % Ly])
+    return energy
+
+# Algoritmo genético para gerar o ordenamento de spin
+def algoritmo_genetico():
+    # Inicialização da população
+    tam_populacao = N
+    populacao = []
+    for _ in range(tam_populacao):
+        ordenamento = [random.choice([-1, 1]) for _ in range(N)]
+        populacao.append(ordenamento)
+
+    # Número de gerações
+    num_geracoes = N*N
+
+    for geracao in range(num_geracoes):
+        # Avaliar a função de aptidão para cada indivíduo
+        aptidoes = [avaliar_ordenamento(ordenamento) for ordenamento in populacao]
+
+        # Seleção dos indivíduos mais aptos
+        selecionados = []
+        for _ in range(tam_populacao):
+            indice1, indice2 = random.choices(range(tam_populacao), k=2)
+            if aptidoes[indice1] < aptidoes[indice2]:
+                selecionados.append(populacao[indice1])
+            else:
+                selecionados.append(populacao[indice2])
+
+        # Recombinação (crossover)
+        nova_populacao = []
+        for _ in range(tam_populacao):
+            indice1, indice2 = random.choices(range(tam_populacao), k=2)
+            ponto_corte = random.randint(0, N)
+            filho = selecionados[indice1][:ponto_corte] + selecionados[indice2][ponto_corte:]
+            nova_populacao.append(filho)
+
+        # Mutação
+        taxa_mutacao = 0.04
+        for i in range(tam_populacao):
+            if random.random() < taxa_mutacao:
+                indice_mutacao = random.randint(0, N - 1)
+                nova_populacao[i][indice_mutacao] *= -1
+
+        # Atualizar a população
+        populacao = nova_populacao
+
+    # Retornar o melhor ordenamento encontrado
+    melhores_aptidoes = [avaliar_ordenamento(ordenamento) for ordenamento in populacao]
+    indice_melhor = melhores_aptidoes.index(min(melhores_aptidoes))
+    melhor_ordenamento = populacao[indice_melhor]
+
+    return melhor_ordenamento
+
+# Executar o algoritmo genético
+melhor_ordenamento = algoritmo_genetico()
+
+# Exibir o resultado
+grade_final = np.array(melhor_ordenamento).reshape((Lx, Ly))
+print("Melhor ordenamento de spin:")
+print(grade_final)
+print("Energia do sistema: ", avaliar_ordenamento(melhor_ordenamento))
+
+# Plot da grade final
+plt.imshow(grade_final, cmap='viridis', interpolation='lanczos')
+plt.colorbar()
+plt.title("Ordenamento de Spin")
+plt.xlabel('[100]')
+plt.ylabel('[001]')
+plt.show()
